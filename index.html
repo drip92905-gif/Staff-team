@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Staff Only - Locked</title>
+  <style>
+    /* Discord-like typography */
+    body {
+      margin: 0;
+      padding: 0;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: "gg sans", "Whitney", "Helvetica Neue", Helvetica, Arial, sans-serif;
+      color: #f2f3f5;
+      overflow: hidden;
+      text-align: center;
+      background: #0b0d12;
+    }
+
+    /* Live anime background (GIF/video layer) */
+    .bg {
+      position: fixed;
+      inset: 0;
+      z-index: -2;
+      background-image: url('https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExZ3F6c2V3M3E1b2N2d2V0c2d3c3VqN2d0dXJ2Z2Y4a2F5ZzJ2dGQwNCZlcD12MV9naWZzX3NlYXJjaCZjdD1n/QBd2kLB5qDmysEXre9/giphy.gif');
+      background-size: cover;
+      background-position: center;
+      filter: blur(2px) brightness(0.6);
+    }
+
+    /* Dark overlay for readability */
+    .overlay {
+      position: fixed;
+      inset: 0;
+      z-index: -1;
+      background: linear-gradient(180deg, rgba(0,0,0,0.55), rgba(0,0,0,0.75));
+    }
+
+    .lock-box, .container {
+      position: relative;
+      background: rgba(30,31,34,0.85); /* Discord dark */
+      padding: 36px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.12);
+      box-shadow: 0 10px 30px rgba(0,0,0,0.45);
+      max-width: 440px;
+      width: 92%;
+    }
+
+    .container { display: none; max-width: 720px; }
+
+    h1 { text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 6px; }
+    h2 { margin-top: 0; }
+
+    .subtitle { color: #b5bac1; margin-bottom: 10px; }
+    .warning { color: #ed4245; font-weight: 700; margin-top: 10px; text-transform: uppercase; }
+
+    input {
+      width: 100%;
+      padding: 12px;
+      margin-top: 12px;
+      border-radius: 8px;
+      border: 1px solid #1f2126;
+      background: #1e1f22;
+      color: #f2f3f5;
+      font-size: 0.95rem;
+    }
+
+    button {
+      margin-top: 12px;
+      padding: 12px;
+      width: 100%;
+      font-size: 0.95rem;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      font-weight: 700;
+      background: #5865f2; /* Discord blurple */
+      color: white;
+    }
+
+    .error { margin-top: 10px; color: #ed4245; display: none; }
+
+    /* Chat */
+    #chatBox {
+      height: 220px;
+      overflow-y: auto;
+      border: 1px solid #1f2126;
+      border-radius: 8px;
+      padding: 10px;
+      margin-bottom: 10px;
+      text-align: left;
+      background: #1e1f22;
+    }
+  </style>
+</head>
+<body>
+  <div class="bg"></div>
+  <div class="overlay"></div>
+
+  <!-- Lock Screen -->
+  <div class="lock-box" id="lockBox">
+    <h1>🔒 Staff Access</h1>
+    <p>Enter staff password to continue</p>
+    <input type="password" id="password" placeholder="Enter password" />
+    <button onclick="unlock()">Unlock</button>
+    <div class="error" id="error">Incorrect password</div>
+  </div>
+
+  <!-- Staff Content -->
+  <div class="container" id="content">
+    <h1>Staff Only</h1>
+    <p class="subtitle">Only Arsenal Staffs</p>
+    <p class="warning">Any other member noticed will result in immediate ban.</p>
+
+    <hr style="margin:25px 0; opacity:0.3;" />
+
+    <h2 style="margin-bottom:10px;">Staff Chat</h2>
+    <div id="chatBox" style="height:200px; overflow-y:auto; border:1px solid #555; padding:10px; margin-bottom:10px; text-align:left;"></div>
+    <input type="text" id="chatInput" placeholder="Type a message..." />
+    <button onclick="sendMessage()">Send</button>
+  </div>
+
+  <script>
+    const correctPassword = "arsenal_staff_team";
+    const maxAttempts = 5;
+    const lockTime = 30 * 60 * 1000; // 30 minutes
+
+    let attempts = localStorage.getItem("attempts")
+      ? parseInt(localStorage.getItem("attempts"))
+      : 0;
+
+    let lockedUntil = localStorage.getItem("lockedUntil")
+      ? parseInt(localStorage.getItem("lockedUntil"))
+      : null;
+
+    const errorBox = document.getElementById("error");
+    const passwordInput = document.getElementById("password");
+
+    function checkLock() {
+      if (lockedUntil && Date.now() < lockedUntil) {
+        const remaining = Math.ceil((lockedUntil - Date.now()) / 60000);
+        errorBox.style.display = "block";
+        errorBox.innerText = `Too many attempts. Try again in ${remaining} minute(s).`;
+        passwordInput.disabled = true;
+      } else {
+        passwordInput.disabled = false;
+        errorBox.style.display = "none";
+        localStorage.removeItem("lockedUntil");
+        localStorage.removeItem("attempts");
+        attempts = 0;
+      }
+    }
+
+    function unlock() {
+      checkLock();
+
+    /* ===== Simple Staff Chat (Local) ===== */
+    const chatBox = document.getElementById("chatBox");
+    const chatInput = document.getElementById("chatInput");
+
+    function loadMessages() {
+      const messages = JSON.parse(localStorage.getItem("staffChat") || "[]");
+      chatBox.innerHTML = "";
+      messages.forEach(msg => {
+        const div = document.createElement("div");
+        div.textContent = msg;
+        div.style.marginBottom = "5px";
+        chatBox.appendChild(div);
+      });
+      chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+    function sendMessage() {
+      const text = chatInput.value.trim();
+      if (!text) return;
+
+      const messages = JSON.parse(localStorage.getItem("staffChat") || "[]");
+      messages.push(text);
+      localStorage.setItem("staffChat", JSON.stringify(messages));
+      chatInput.value = "";
+      loadMessages();
+    }
+
+    window.addEventListener("storage", loadMessages);
+    loadMessages();
+  </script>
+  
